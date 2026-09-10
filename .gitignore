@@ -1,0 +1,41 @@
+
+#
+__pycache__
+
+# ambiente
+venv/
+env/
+.venv/
+
+#variaveis de ambiente
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# banco local
+db.sqlite3
+db.sqlite3-journal
+
+# midia
+/media/
+/staticfiles/
+
+# configuracao ide
+idea/
+.idea/
+__MACOSX/
+.vscode/
+!.vscode/extensions.json
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.pyc
