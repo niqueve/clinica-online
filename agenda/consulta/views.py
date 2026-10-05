@@ -1,5 +1,32 @@
 from django.shortcuts import render
 from .models import Consulta
+from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
+from core.serializers import ConsultaSerializer
+from consulta.models import Consulta
+
+class ConsultaViewSet(viewsets.ModelViewSet):
+    queryset = Consulta.objects.all()
+    serializer_class = ConsultaSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = Consulta.objects.all()
+
+        #------------------------------------------- Isolamento de consultas por papel do usuario
+        if hasattr(user, 'tipo'):
+            if user.tipo == 'PACIENTE':
+                queryset = queryset.filter(paciente__usuario=user)
+            elif user.tipo == 'PROFISSIONAL':
+                queryset = queryset.filter(profissional__usuario=user)
+
+        #------------------------------------------------ Filtro de multiplas clínicas por parâmetro na URL 
+        clinica_id = self.request.query_params.get('clinica')
+        if clinica_id:
+            queryset = queryset.filter(paciente__clinica_id=clinica_id)
+
+        return queryset
 
 def lista_consultas(request):
     termo_busca = request.GET.get('q', '')

@@ -1,5 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from rest_framework.authtoken.models import Token
+from django.conf import settings
 
 class EnderecoBase (models.Model):
     rua = models.CharField(max_length=255)
@@ -26,3 +30,8 @@ class Usuario (AbstractUser):
 
     def __str__(self):
         return f"{self.username} ({self.get_tipo_display()})"
+
+    @receiver(post_save, sender=settings.AUTH_USER_MODEL)
+    def criar_token_auth(sender, instance=None, created=False, **kwargs):
+        if created:
+            Token.objects.create(user=instance)
