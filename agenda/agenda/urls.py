@@ -21,4 +21,5 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path('api/token/', obtain_auth_token),
     path('consultas/', include('consulta.urls')),
+    path('auth/', include('core.urls')),
 ]
