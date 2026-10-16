@@ -5,7 +5,8 @@ from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
 from django.conf import settings
 
-class EnderecoBase (models.Model):
+
+class EnderecoBase(models.Model):
     rua = models.CharField(max_length=255)
     numero = models.CharField(max_length=20)
     bairro = models.CharField(max_length=100)
@@ -16,22 +17,39 @@ class EnderecoBase (models.Model):
     class Meta:
         abstract = True
 
-class Usuario (AbstractUser):
-    class TipoUsuario (models.TextChoices):
+
+@receiver(post_save, sender=settings.AUTH_USER_MODEL)
+def criar_token_auth(sender, instance=None, created=False, **kwargs):
+    if created:
+        Token.objects.get_or_create(user=instance)
+
+
+class Usuario(AbstractUser):
+    class TipoUsuario(models.TextChoices):
         ADMIN = 'ADMIN', 'Administrador'
         PACIENTE = 'PACIENTE', 'Paciente'
         PROFISSIONAL = 'PROFISSIONAL', 'Profissional'
+        CLINICA = 'CLINICA', 'Representante de Clínica'
+
+    STATUS_CHOICES = (
+        ('PENDENTE', 'Pendente de Aprovação'),
+        ('APROVADO', 'Aprovado'),
+        ('REJEITADO', 'Rejeitado'),
+        ('DESATIVADO', 'Desativado'),
+    )
 
     tipo = models.CharField(
-        max_length=20,
+        max_length=30,
         choices=TipoUsuario.choices,
-        default=TipoUsuario.PACIENTE
+        blank=True,
+        null=True
+    )
+
+    status_aprovacao = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='PENDENTE'
     )
 
     def __str__(self):
         return f"{self.username} ({self.get_tipo_display()})"
-
-    @receiver(post_save, sender=settings.AUTH_USER_MODEL)
-    def criar_token_auth(sender, instance=None, created=False, **kwargs):
-        if created:
-            Token.objects.create(user=instance)

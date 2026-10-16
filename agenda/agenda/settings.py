@@ -21,13 +21,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY')
-
+SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-only-secret-key-change-me')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True').lower() in {'1', 'true', 'yes', 'on'}
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0').split(',')
 
 
 # Application definition
@@ -83,16 +82,24 @@ WSGI_APPLICATION = 'agenda.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('POSTGRES_DB', 'clinica_online'),
-        'USER': os.environ.get('POSTGRES_USER', 'clinica_admin'),
-        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'senha_super_segura_123'),
-        'HOST': os.environ.get('POSTGRES_HOST', 'localhost'), # Usa 'db' quando rodar no Docker
-        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+if os.environ.get('POSTGRES_DB') and os.environ.get('POSTGRES_USER'):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('POSTGRES_DB', 'clinica_online'),
+            'USER': os.environ.get('POSTGRES_USER', 'clinica_admin'),
+            'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'senha_super_segura_123'),
+            'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
+            'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
