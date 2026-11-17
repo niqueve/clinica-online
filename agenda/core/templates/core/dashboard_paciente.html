@@ -13,6 +13,7 @@
                 {% csrf_token %}
                 <button type="submit" class="btn btn-outline-light btn-sm">Sair</button>
             </form>
+        </div>
     </nav>
     <div class="container">
         <h2>Minhas Consultas Agendadas</h2>
@@ -21,6 +22,7 @@
             <table class="table table-striped shadow bg-white rounded">
                 <thead>
                     <tr>
+                        <th>Profissional</th>
                         <th>Data/Hora</th>
                         <th>Status</th>
                     </tr>
@@ -28,8 +30,9 @@
                 <tbody>
                     {% for consulta in consultas %}
                         <tr>
-                            <td>{{ consulta.data_hora }}</td>
-                            <td>{{ consulta.status|default:"Agendada" }}</td>
+                            <td>{{ consulta.profissional }}</td>
+                            <td>{{ consulta.data_hora_inicio|date:"d/m/Y H:i" }}</td>
+                            <td>{{ consulta.get_status_display|default:"Agendada" }}</td>
                         </tr>
                     {% endfor %}
                 </tbody>

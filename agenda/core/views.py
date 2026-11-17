@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from consulta.models import Consulta
+from consulta.views import filtrar_consultas_por_organizacao
 from paciente.models import Paciente
 from profissional.models import Profissional
 from clinica.models import Clinica
@@ -45,12 +46,14 @@ def dashboard_view(request):
 
     elif hasattr(user, 'tipo') and user.tipo == 'PROFISSIONAL':
         profissional = Profissional.objects.filter(usuario=user).first()
-        context['consultas'] = Consulta.objects.filter(profissional=profissional) if profissional else []
+        queryset = Consulta.objects.filter(profissional=profissional) if profissional else Consulta.objects.none()
+        context['consultas'] = filtrar_consultas_por_organizacao(user, queryset)
         template_name = 'core/dashboard_profissional.html'
 
     else:
         paciente = Paciente.objects.filter(usuario=user).first()
-        context['consultas'] = Consulta.objects.filter(paciente=paciente) if paciente else []
+        queryset = Consulta.objects.filter(paciente=paciente) if paciente else Consulta.objects.none()
+        context['consultas'] = filtrar_consultas_por_organizacao(user, queryset)
         template_name = 'core/dashboard_paciente.html'
 
     return render(request, template_name, context)
