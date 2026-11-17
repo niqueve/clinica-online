@@ -1,9 +1,52 @@
+from django.db.models import Q
 from django.shortcuts import render
-from .models import Consulta
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
+
+from clinica.models import Clinica
 from core.serializers import ConsultaSerializer
-from consulta.models import Consulta
+from paciente.models import Paciente
+from profissional.models import Profissional
+from .models import Consulta
+
+
+def filtrar_consultas_por_organizacao(user, queryset=None, clinica_id=None):
+    queryset = queryset if queryset is not None else Consulta.objects.all()
+
+    if not getattr(user, 'is_authenticated', False):
+        return queryset
+
+    if getattr(user, 'tipo', None) == 'ADMIN':
+        return queryset
+
+    if clinica_id:
+        return queryset.filter(
+            Q(paciente__clinica_id=clinica_id) | Q(profissional__clinica_id=clinica_id)
+        )
+
+    if getattr(user, 'tipo', None) == 'PACIENTE':
+        paciente = Paciente.objects.filter(usuario=user).first()
+        if not paciente or not paciente.clinica_id:
+            return queryset.none()
+        return queryset.filter(
+            Q(paciente__clinica_id=paciente.clinica_id) |
+            Q(profissional__clinica_id=paciente.clinica_id)
+        )
+
+    if getattr(user, 'tipo', None) == 'PROFISSIONAL':
+        profissional = Profissional.objects.filter(usuario=user).first()
+        if not profissional or not profissional.clinica_id:
+            return queryset.none()
+        return queryset.filter(
+            Q(paciente__clinica_id=profissional.clinica_id) |
+            Q(profissional__clinica_id=profissional.clinica_id)
+        )
+
+    if getattr(user, 'tipo', None) == 'CLINICA':
+        return queryset.none()
+
+    return queryset
+
 
 class ConsultaViewSet(viewsets.ModelViewSet):
     queryset = Consulta.objects.all()
@@ -14,25 +57,17 @@ class ConsultaViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = Consulta.objects.all()
 
-        #------------------------------------------- Isolamento de consultas por papel do usuario
-        if hasattr(user, 'tipo'):
-            if user.tipo == 'PACIENTE':
-                queryset = queryset.filter(paciente__usuario=user)
-            elif user.tipo == 'PROFISSIONAL':
-                queryset = queryset.filter(profissional__usuario=user)
-
-        #------------------------------------------------ Filtro de multiplas clínicas por parâmetro na URL 
         clinica_id = self.request.query_params.get('clinica')
-        if clinica_id:
-            queryset = queryset.filter(paciente__clinica_id=clinica_id)
+        return filtrar_consultas_por_organizacao(user, queryset, clinica_id)
 
-        return queryset
 
 def lista_consultas(request):
     termo_busca = request.GET.get('q', '')
     especialidade_filtro = request.GET.get('especialidade', '')
+    clinica_filtro = request.GET.get('clinica', '')
 
     consultas = Consulta.objects.all()
+    consultas = filtrar_consultas_por_organizacao(request.user, consultas, clinica_filtro)
 
     #---------------------------------------------------------------- Busca por texto no nome do paciente (ou nome do usuário associado)
     if termo_busca:
@@ -48,13 +83,20 @@ def lista_consultas(request):
             profissional__especialidade__icontains=especialidade_filtro
         )
 
-    from profissional.models import Profissional
+    if clinica_filtro:
+        consultas = consultas.filter(
+            Q(paciente__clinica_id=clinica_filtro) | Q(profissional__clinica_id=clinica_filtro)
+        )
+
     especialidades = Profissional.objects.values_list('especialidade', flat=True).distinct()
+    clinicas = Clinica.objects.all()
 
     context = {
         'consultas': consultas,
         'termo_busca': termo_busca,
         'especialidade_filtro': especialidade_filtro,
+        'clinica_filtro': clinica_filtro,
         'especialidades': especialidades,
+        'clinicas': clinicas,
     }
     return render(request, 'consulta/lista_consultas.html', context)

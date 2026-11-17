@@ -10,10 +10,10 @@
 
     <!-- Formulário de Busca e Filtro (Feature 1) -->
     <form method="get" class="row g-3 my-4">
-        <div class="col-md-5">
+        <div class="col-md-4">
             <input type="text" name="q" class="form-control" placeholder="Buscar por nome do paciente..." value="{{ termo_busca }}">
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <select name="especialidade" class="form-select">
                 <option value="">Todas as especialidades</option>
                 {% for esp in especialidades %}
@@ -22,6 +22,14 @@
             </select>
         </div>
         <div class="col-md-3">
+            <select name="clinica" class="form-select">
+                <option value="">Todas as clínicas</option>
+                {% for clinica in clinicas %}
+                    <option value="{{ clinica.id }}" {% if clinica_filtro|stringformat:"s" == clinica.id|stringformat:"s" %}selected{% endif %}>{{ clinica.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
             <button type="submit" class="btn btn-primary w-100">Filtrar</button>
         </div>
     </form>
