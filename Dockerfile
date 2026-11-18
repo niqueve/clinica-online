@@ -19,4 +19,6 @@ COPY . .
 
 EXPOSE 8002
 
-CMD [ "python", "agenda/manage.py", "runserver", "0.0.0.0:8002" ]
+CMD python agenda/manage.py migrate --noinput && \
+    python agenda/manage.py collectstatic --noinput && \
+    gunicorn --bind 0.0.0.0:8002 --workers 2 agenda.wsgi:application
