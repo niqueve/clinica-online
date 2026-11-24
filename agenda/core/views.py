@@ -36,6 +36,8 @@ def dashboard_view(request):
     user = request.user
     context = {}
 
+    sincronizar_tipo_por_perfil(user)
+
     if not user.tipo:
         return redirect('core:selecionar_perfil')
 
@@ -47,6 +49,10 @@ def dashboard_view(request):
         context['total_pacientes'] = Paciente.objects.count()
         context['total_profissionais'] = Profissional.objects.count()
         context['total_clinicas'] = Clinica.objects.count()
+        context['usuarios_pendentes'] = Usuario.objects.filter(
+            status_aprovacao='PENDENTE',
+            profissional__isnull=False,
+        ).select_related('profissional')
         template_name = 'core/dashboard_admin.html'
 
     elif user.tipo == 'PROFISSIONAL':
@@ -75,6 +81,10 @@ def dashboard_view(request):
         context['historico_consultas'] = queryset.exclude(status='AGENDADA').order_by('-data_hora_inicio')
         context['clinicas'] = clinicas
         context['profissionais'] = profissionais
+        context['solicitacao_profissional_pendente'] = (
+            user.status_aprovacao == 'PENDENTE'
+            and Profissional.objects.filter(usuario=user).exists()
+        )
         template_name = 'core/dashboard_paciente.html'
 
     return render(request, template_name, context)
@@ -107,21 +117,33 @@ class RegisterAPIView(APIView):
                 email=email,
                 password=password,
                 first_name=name,
-                status_aprovacao='PENDENTE'
+                tipo='PACIENTE',
+                status_aprovacao='APROVADO'
+            )
+
+            Paciente.objects.create(
+                usuario=user,
+                rua='', numero='', bairro='', cidade='', estado='', cep='',
             )
 
             token, _ = Token.objects.get_or_create(user=user)
+            auth_login(request, user)
 
             return Response({
-                'message': 'Usuário cadastrado com sucesso!',
+                'message': 'Usuário cadastrado como paciente com sucesso!',
                 'token': token.key,
-                'redirect_url': reverse('core:selecionar_perfil')
+                'redirect_url': reverse('core:dashboard')
             }, status=status.HTTP_201_CREATED)
 
         except Exception as exc:
             return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
 def selecionar_perfil_view(request):
+    if request.user.is_authenticated:
+        sincronizar_tipo_por_perfil(request.user)
+        if request.user.tipo:
+            return redirect('core:dashboard')
+
     if request.method == 'POST':
         tipo_escolhido = request.POST.get('tipo')
 
@@ -156,6 +178,7 @@ class SessionLoginAPIView(APIView):
         user = authenticate(request, username=username, password=password)
         if user is not None:
             auth_login(request, user)
+            sincronizar_tipo_por_perfil(user)
             return Response({'message': 'Login realizado com sucesso!', 'redirect_url': '/dashboard/'}, status=status.HTTP_200_OK)
         else:
             return Response({'error': 'E-mail ou senha inválidos.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -291,3 +314,123 @@ def relatorio_consultas_view(request):
             messages.error(request, 'Formato de data inválido. Use AAAA-MM-DD.')
 
     return render(request, 'core/relatorio_consultas.html', {'consultas': consultas})
+
+def sincronizar_tipo_por_perfil(user):
+    """Sincroniza tipos criados pelo painel sem alterar solicitações profissionais pendentes."""
+    if user.is_superuser:
+        if user.tipo != 'ADMIN':
+            user.tipo = 'ADMIN'
+            user.status_aprovacao = 'APROVADO'
+            user.save(update_fields=['tipo', 'status_aprovacao'])
+        return user.tipo
+
+    if user.tipo == 'PACIENTE':
+        if not Paciente.objects.filter(usuario=user).exists():
+            Paciente.objects.create(
+                usuario=user, rua='', numero='', bairro='', cidade='', estado='', cep='',
+            )
+
+        if user.status_aprovacao == 'APROVADO' and Profissional.objects.filter(usuario=user).exists():
+            user.tipo = 'PROFISSIONAL'
+            user.save(update_fields=['tipo'])
+
+        return user.tipo
+
+    if user.status_aprovacao == 'APROVADO' and Profissional.objects.filter(usuario=user).exists():
+        if user.tipo != 'PROFISSIONAL':
+            user.tipo = 'PROFISSIONAL'
+            user.save(update_fields=['tipo'])
+        return user.tipo
+
+    if Paciente.objects.filter(usuario=user).exists():
+        user.tipo = 'PACIENTE'
+        user.status_aprovacao = 'APROVADO'
+        user.save(update_fields=['tipo', 'status_aprovacao'])
+
+    elif Profissional.objects.filter(usuario=user).exists():
+        user.tipo = 'PROFISSIONAL'
+        user.save(update_fields=['tipo'])
+
+    return user.tipo
+
+@login_required
+def solicitar_profissional_view(request):
+    if request.user.tipo != 'PACIENTE':
+        messages.warning(request, 'Esta solicitação está disponível apenas para contas de paciente.')
+        return redirect('core:dashboard')
+
+    if request.method == 'POST':
+        clinica = Clinica.objects.filter(pk=request.POST.get('clinica')).first()
+        especialidade = (request.POST.get('especialidade') or '').strip()
+        registro = (request.POST.get('registro_conselho') or '').strip()
+
+        if not clinica or not especialidade:
+            messages.error(request, 'Selecione uma clínica e informe sua especialidade.')
+            return redirect('core:dashboard')
+
+        paciente = Paciente.objects.filter(usuario=request.user).first()
+
+        Profissional.objects.update_or_create(
+            usuario=request.user,
+            defaults={
+                'clinica': clinica,
+                'especialidade': especialidade,
+                'registro_conselho': registro or None,
+                'rua': paciente.rua if paciente else '',
+                'numero': paciente.numero if paciente else '',
+                'bairro': paciente.bairro if paciente else '',
+                'cidade': paciente.cidade if paciente else '',
+                'estado': paciente.estado if paciente else '',
+                'cep': paciente.cep if paciente else '',
+            },
+        )
+
+        request.user.status_aprovacao = 'PENDENTE'
+        request.user.save(update_fields=['status_aprovacao'])
+
+        messages.success(request, 'Solicitação enviada. Aguarde a aprovação da administração.')
+        return redirect('core:dashboard')
+
+    solicitacao_pendente = (
+        request.user.status_aprovacao == 'PENDENTE'
+        and Profissional.objects.filter(usuario=request.user).exists()
+    )
+
+    profissional = Profissional.objects.filter(usuario=request.user).first()
+    return render(request, 'core/solicitar_profissional.html', {
+        'clinicas': Clinica.objects.all(),
+        'solicitacao_pendente': solicitacao_pendente,
+        'profissional': profissional,
+    })
+
+@login_required
+def aprovar_profissional_view(request, usuario_id):
+    if not (request.user.is_superuser or request.user.tipo == 'ADMIN'):
+        messages.error(request, 'Apenas administradores podem aprovar solicitações.')
+        return redirect('core:dashboard')
+
+    usuario = get_object_or_404(Usuario, pk=usuario_id)
+    if request.method == 'POST' and Profissional.objects.filter(usuario=usuario).exists():
+        usuario.status_aprovacao = 'APROVADO'
+        usuario.tipo = 'PROFISSIONAL'
+        usuario.save(update_fields=['status_aprovacao', 'tipo'])
+        messages.success(request, 'Cadastro profissional aprovado.')
+
+    return redirect('core:dashboard')
+
+
+@login_required
+def rejeitar_profissional_view(request, usuario_id):
+    if not (request.user.is_superuser or request.user.tipo == 'ADMIN'):
+        messages.error(request, 'Apenas administradores podem rejeitar solicitações.')
+        return redirect('core:dashboard')
+
+    usuario = get_object_or_404(Usuario, pk=usuario_id)
+    if request.method == 'POST':
+        usuario.status_aprovacao = 'REJEITADO'
+        usuario.tipo = 'PACIENTE'
+        usuario.save(update_fields=['status_aprovacao', 'tipo'])
+        Profissional.objects.filter(usuario=usuario).delete()
+        messages.success(request, 'Solicitação profissional rejeitada.')
+
+    return redirect('core:dashboard')
