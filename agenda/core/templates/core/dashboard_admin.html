@@ -17,7 +17,37 @@
     <div class="container">
         <h2>Painel do Administrador</h2>
         <p class="text-muted">Visão geral do sistema e métricas das clínicas.</p>
-        
+        <div class="mb-3 d-flex gap-2">
+            <a class="btn btn-dark btn-sm" href="/admin/core/usuario/">Gerenciar usuários</a>
+            <a class="btn btn-outline-dark btn-sm" href="/admin/profissional/profissional/">Gerenciar profissionais</a>
+        </div>
+
+        {% if usuarios_pendentes %}
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-white"><strong>Solicitações profissionais pendentes</strong></div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0">
+                        <thead><tr><th>Usuário</th><th>Especialidade</th><th>Clínica</th><th>Ações</th></tr></thead>
+                        <tbody>
+                        {% for usuario in usuarios_pendentes %}
+                            <tr>
+                                <td>{{ usuario.first_name|default:usuario.username }}</td>
+                                <td>{{ usuario.profissional.especialidade }}</td>
+                                <td>{{ usuario.profissional.clinica }}</td>
+                                <td>
+                                    <div class="d-flex gap-2">
+                                        <form method="post" action="{% url 'core:aprovar_profissional' usuario.id %}">{% csrf_token %}<button class="btn btn-success btn-sm">Aprovar</button></form>
+                                        <form method="post" action="{% url 'core:rejeitar_profissional' usuario.id %}">{% csrf_token %}<button class="btn btn-outline-danger btn-sm">Rejeitar</button></form>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endif %}
+
         <div class="row mt-4">
             <div class="col-md-3">
                 <div class="card text-white bg-primary mb-3 shadow">

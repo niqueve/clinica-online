@@ -12,6 +12,7 @@
         <a class="navbar-brand" href="{% url 'core:dashboard' %}">Clínica Online</a>
         <div class="d-flex gap-2">
             <a class="btn btn-light btn-sm" href="{% url 'core:editar_perfil' %}">Editar meus dados</a>
+            <a class="btn btn-light btn-sm" href="{% url 'core:solicitar_profissional' %}">Cadastro profissional</a>
             <form action="{% url 'core:logout' %}" method="post">
                 {% csrf_token %}
                 <button class="btn btn-outline-light btn-sm" type="submit">Sair</button>
