@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 from disponibilidade.models import Disponibilidade
 from paciente.models import Paciente
 from profissional.models import Profissional
@@ -24,37 +25,34 @@ class Consulta(models.Model):
 
         if self.data_hora_inicio and self.data_hora_fim:
             if self.data_hora_inicio >= self.data_hora_fim:
-                raise ValidationError("A data/hora de término deve ser posterior à data/hora de início.")
+                raise ValidationError('A data/hora de término deve ser posterior à data/hora de início.')
 
-            #---------------------------------------------------------------- Extrai o dia da semana (0=Domingo,1=Segunda, ..., 6=Sábado)
-            dia_semana = self.data_hora_inicio.weekday()
-            hora_inicio_consulta = self.data_hora_inicio.time()
-            hora_fim_consulta = self.data_hora_fim.time()
+            dia_semana = (self.data_hora_inicio.weekday() + 1) % 7
+            hora_inicio_consulta = timezone.localtime(self.data_hora_inicio).time()
+            hora_fim_consulta = timezone.localtime(self.data_hora_fim).time()
 
-            #---------------------------------------------------- Verifica se o profissional possui disponibilidade cadastrada que cubra todo o intervalo
             disponivel = Disponibilidade.objects.filter(
                 profissional=self.profissional,
                 dia_semana=dia_semana,
                 hora_inicio__lte=hora_inicio_consulta,
-                hora_fim__gte=hora_fim_consulta
+                hora_fim__gte=hora_fim_consulta,
             ).exists()
 
             if not disponivel:
-                raise ValidationError("O profissional não atende neste dia ou horário.")
+                raise ValidationError('O profissional não atende neste dia ou horário.')
 
-            # ------------------------------------------------------------------------------- validacao de choque de horários
             conflitos = Consulta.objects.filter(
                 profissional=self.profissional,
-                status = 'AGENDADA',
+                status='AGENDADA',
                 data_hora_inicio__lt=self.data_hora_fim,
-                data_hora_fim__gt=self.data_hora_inicio
+                data_hora_fim__gt=self.data_hora_inicio,
             )
 
             if self.pk:
                 conflitos = conflitos.exclude(pk=self.pk)
 
             if conflitos.exists():
-                raise ValidationError("O profissional já possui uma consulta agendada para este horário")
+                raise ValidationError('O profissional já possui uma consulta agendada para este horário')
 
     def save(self, *args, **kwargs):
         self.full_clean()

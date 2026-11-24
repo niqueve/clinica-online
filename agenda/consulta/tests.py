@@ -111,13 +111,13 @@ class ConsultaOrganizacaoTests(TestCase):
 
         Disponibilidade.objects.create(
             profissional=self.profissional_a,
-            dia_semana=3,
+            dia_semana=4,
             hora_inicio='09:00:00',
             hora_fim='09:30:00',
         )
         Disponibilidade.objects.create(
             profissional=self.profissional_b,
-            dia_semana=4,
+            dia_semana=5,
             hora_inicio='10:00:00',
             hora_fim='10:30:00',
         )
