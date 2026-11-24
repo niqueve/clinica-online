@@ -3,7 +3,8 @@ from django.contrib.auth.views import LogoutView
 from .views import (
     CustomLoginView, dashboard_view, home_view, RegisterAPIView,
     selecionar_perfil_view, SessionLoginAPIView, editar_perfil_view,
-    agendar_consulta_view, cancelar_consulta_view,
+    agendar_consulta_view, cancelar_consulta_view, solicitar_profissional_view,
+    aprovar_profissional_view, rejeitar_profissional_view,
 )
 
 app_name = 'core'
@@ -19,4 +20,7 @@ urlpatterns = [
     path('selecionar-perfil/', selecionar_perfil_view, name='selecionar_perfil'),
     path('api/register/', RegisterAPIView.as_view(), name='api_register'),
     path('api/session-login/', SessionLoginAPIView.as_view(), name='session_login'),
+    path('profissional/solicitar/', solicitar_profissional_view, name='solicitar_profissional'),
+    path('admin/profissionais/<int:usuario_id>/aprovar/', aprovar_profissional_view, name='aprovar_profissional'),
+    path('admin/profissionais/<int:usuario_id>/rejeitar/', rejeitar_profissional_view, name='rejeitar_profissional'),
 ]
