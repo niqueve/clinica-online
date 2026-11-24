@@ -40,6 +40,12 @@ clinica-online/
 
 ## Como utilizar 
 
+A aplicação está hospedada em: https://clinica-online-q7by.onrender.com/
+Apenas o perfil de usuario do tipo "PACIENTE" possui aprovação automática e acesso ao dashboard com marcação de consultas. 
+Para testar o comportamento em outros perfis é necessário solicitar aprovação ou clonar este repositório para rodar localmente seguindo as instruções abaixo. 
+
+## Como rodar com Docker
+
 
 1. Copie o modelo de variáveis de ambiente e edite se necessário:
 

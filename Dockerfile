@@ -19,6 +19,4 @@ COPY . .
 
 EXPOSE 8002
 
-CMD python agenda/manage.py migrate --noinput && \
-    python agenda/manage.py collectstatic --noinput && \
-    gunicorn --bind 0.0.0.0:8002 --workers 2 --chdir agenda agenda.wsgi:application
+CMD sh -c "${WEB_COMMAND:-gunicorn --bind 0.0.0.0:8002 --workers 2 --chdir agenda agenda.wsgi:application}"
